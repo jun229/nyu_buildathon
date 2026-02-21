@@ -23,4 +23,3 @@ backend/.pytest_cache/
 # Logs
 *.log
 npm-debug.log*
-backend/venv/pyvenv.cfg
