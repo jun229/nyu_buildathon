@@ -23,3 +23,6 @@ backend/.pytest_cache/
 # Logs
 *.log
 npm-debug.log*
+
+
+.env
