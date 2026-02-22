@@ -135,8 +135,8 @@ function OffersContent() {
 
   useEffect(() => { fetchOffers(); }, [fetchOffers]);
 
-  const accepted = data?.offers.filter((o) => o.accepted) ?? [];
-  const declined = data?.offers.filter((o) => !o.accepted) ?? [];
+  const accepted = (data?.offers.filter((o) => o.accepted) ?? []).slice(0, 2);
+  const declined = (data?.offers.filter((o) => !o.accepted) ?? []).slice(0, 1);
 
   return (
     <div className="min-h-screen bg-neutral-50 flex flex-col">
