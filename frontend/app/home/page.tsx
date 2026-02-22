@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState, useCallback, useEffect } from 'react';
-import { UserButton } from '@clerk/nextjs';
+import { UserButton, useAuth } from '@clerk/nextjs';
 import { Camera, Upload, X, Zap, ImageIcon, Phone, MapPin } from 'lucide-react';
 import Link from 'next/link';
 import { formatPrice } from '@/lib/utils';
@@ -58,6 +58,7 @@ function Navbar() {
 /* ─── Upload Zone ─────────────────────────────────────────────────────────── */
 
 export default function HomePage() {
+  const { getToken } = useAuth();
   const [state, setState] = useState<UploadState>('idle');
   const [preview, setPreview] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -116,9 +117,11 @@ export default function HomePage() {
         formData.append('ll', `@${coords.lat},${coords.lng}`);
       }
 
+      const token = await getToken();
       const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
       const response = await fetch(`${apiUrl}/api/analyze`, {
         method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData,
       });
 
@@ -131,7 +134,7 @@ export default function HomePage() {
       setErrorMessage(err instanceof Error ? err.message : 'Something went wrong');
       setState('error');
     }
-  }, [currentFile]);
+  }, [currentFile, getToken]);
 
   return (
     <div className="min-h-screen bg-[var(--color-neutral-50)] flex flex-col">
