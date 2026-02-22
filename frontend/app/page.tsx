@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import {
   SignInButton,
@@ -6,7 +6,7 @@ import {
   SignedIn,
   SignedOut,
   UserButton,
-} from '@clerk/nextjs';
+} from "@clerk/nextjs";
 import {
   Camera,
   Phone,
@@ -21,8 +21,8 @@ import {
   Eye,
   ArrowRight,
   Sparkles,
-} from 'lucide-react';
-import Link from 'next/link';
+} from "lucide-react";
+import Link from "next/link";
 
 /* ─── Nav ────────────────────────────────────────────────────────────────── */
 
@@ -37,7 +37,7 @@ function Navbar() {
           </div>
           <span
             className="text-xl font-bold tracking-tight"
-            style={{ fontFamily: 'var(--font-family-display)' }}
+            style={{ fontFamily: "var(--font-family-display)" }}
           >
             FlipKit
           </span>
@@ -47,18 +47,19 @@ function Navbar() {
         <div className="flex items-center gap-3">
           <SignedOut>
             <SignInButton mode="modal">
-              <button className="btn btn-secondary text-sm px-4 py-2">Sign In</button>
+              <button className="btn btn-secondary text-sm px-4 py-2">
+                Sign In
+              </button>
             </SignInButton>
-            <SignUpButton mode="modal" fallbackRedirectUrl="/dashboard">
-              <button className="btn btn-primary text-sm px-4 py-2">Get Started</button>
+            <SignUpButton mode="modal">
+              <button className="btn btn-primary text-sm px-4 py-2">
+                Get Started
+              </button>
             </SignUpButton>
           </SignedOut>
           <SignedIn>
-            <Link
-              href="/dashboard"
-              className="btn btn-secondary text-sm px-4 py-2"
-            >
-              Dashboard →
+            <Link href="/home" className="btn btn-secondary text-sm px-4 py-2">
+              Go to App →
             </Link>
             <UserButton />
           </SignedIn>
@@ -86,28 +87,33 @@ function Hero() {
 
           <h1
             className="text-5xl sm:text-6xl font-extrabold leading-tight mb-6"
-            style={{ fontFamily: 'var(--font-family-display)', letterSpacing: '-0.03em' }}
+            style={{
+              fontFamily: "var(--font-family-display)",
+              letterSpacing: "-0.03em",
+            }}
           >
-            Snap.{' '}
-            <span className="gradient-text">Sell.</span>
+            Snap. <span className="gradient-text">Sell.</span>
             <br />
             Done.
           </h1>
 
           <p className="text-lg sm:text-xl text-[var(--color-neutral-700)] max-w-xl mx-auto lg:mx-0 mb-8 leading-relaxed">
-            Take <strong>one photo</strong> of your item and our AI handles everything
-            — calling local stores, listing on eBay, finding the best price, even
-            booking your drop-off appointment.
+            Take <strong>one photo</strong> of your item and our AI handles
+            everything — calling local stores, listing on eBay, finding the best
+            price, even booking your drop-off appointment.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
-            <SignUpButton mode="modal" fallbackRedirectUrl="/dashboard">
+            <SignUpButton mode="modal" forceRedirectUrl="/home">
               <button className="btn btn-primary text-base px-8 py-4">
                 <Camera className="w-5 h-5" />
                 Start Selling Free
               </button>
             </SignUpButton>
-            <a href="#how-it-works" className="btn btn-secondary text-base px-8 py-4">
+            <a
+              href="#how-it-works"
+              className="btn btn-secondary text-base px-8 py-4"
+            >
               See how it works
             </a>
           </div>
@@ -137,11 +143,13 @@ function HeroVisual() {
           </div>
           <p
             className="text-sm font-semibold text-[var(--color-neutral-700)]"
-            style={{ fontFamily: 'var(--font-family-display)' }}
+            style={{ fontFamily: "var(--font-family-display)" }}
           >
             Take a photo
           </p>
-          <p className="text-xs text-[var(--color-neutral-500)]">Tap to upload</p>
+          <p className="text-xs text-[var(--color-neutral-500)]">
+            Tap to upload
+          </p>
         </div>
       </div>
 
@@ -151,7 +159,10 @@ function HeroVisual() {
           <div className="w-6 h-6 rounded-full bg-[var(--color-accent-green)] flex items-center justify-center agent-active">
             <Phone className="w-3 h-3 text-white" />
           </div>
-          <span className="text-xs font-medium" style={{ fontFamily: 'var(--font-family-display)' }}>
+          <span
+            className="text-xs font-medium"
+            style={{ fontFamily: "var(--font-family-display)" }}
+          >
             Calling Joe's Pawn...
           </span>
         </div>
@@ -162,7 +173,10 @@ function HeroVisual() {
           <div className="w-6 h-6 rounded-full bg-[var(--color-secondary)] flex items-center justify-center">
             <Package className="w-3 h-3 text-white" />
           </div>
-          <span className="text-xs font-medium" style={{ fontFamily: 'var(--font-family-display)' }}>
+          <span
+            className="text-xs font-medium"
+            style={{ fontFamily: "var(--font-family-display)" }}
+          >
             Listed on eBay · 47 watching 👀
           </span>
         </div>
@@ -173,7 +187,7 @@ function HeroVisual() {
           <TrendingUp className="w-4 h-4 text-[var(--color-accent-green)]" />
           <span
             className="text-xs font-bold text-[var(--color-accent-green)]"
-            style={{ fontFamily: 'var(--font-family-mono)' }}
+            style={{ fontFamily: "var(--font-family-mono)" }}
           >
             Best offer: $450
           </span>
@@ -188,38 +202,40 @@ function HeroVisual() {
 function HowItWorks() {
   const steps = [
     {
-      emoji: '📸',
-      title: 'Take a Photo',
+      emoji: "📸",
+      title: "Take a Photo",
       desc: "Snap one pic of whatever you're selling. That's literally it from you.",
-      rotate: 'rotate-slight',
-      color: 'bg-[var(--color-primary)]',
+      rotate: "rotate-slight",
+      color: "bg-[var(--color-primary)]",
     },
     {
-      emoji: '🤖',
-      title: 'AI Does the Work',
-      desc: 'Our agents search prices, call stores, and list your item everywhere — all at once.',
-      rotate: 'rotate-slight-reverse',
-      color: 'bg-[var(--color-secondary)]',
+      emoji: "🤖",
+      title: "AI Does the Work",
+      desc: "Our agents search prices, call stores, and list your item everywhere — all at once.",
+      rotate: "rotate-slight-reverse",
+      color: "bg-[var(--color-secondary)]",
     },
     {
-      emoji: '💰',
-      title: 'Pick Your Best Offer',
-      desc: 'See all your options side-by-side. Accept the highest offer or list everywhere at once.',
-      rotate: 'rotate-slight',
-      color: 'bg-[var(--color-accent-green)]',
+      emoji: "💰",
+      title: "Pick Your Best Offer",
+      desc: "See all your options side-by-side. Accept the highest offer or list everywhere at once.",
+      rotate: "rotate-slight",
+      color: "bg-[var(--color-accent-green)]",
     },
   ];
 
   return (
-    <section id="how-it-works" className="py-20 px-4 bg-[var(--color-neutral-50)]">
+    <section
+      id="how-it-works"
+      className="py-20 px-4 bg-[var(--color-neutral-50)]"
+    >
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-14">
           <h2
             className="text-4xl sm:text-5xl font-extrabold mb-4"
-            style={{ fontFamily: 'var(--font-family-display)' }}
+            style={{ fontFamily: "var(--font-family-display)" }}
           >
-            Three steps.{' '}
-            <span className="gradient-text">Zero hassle.</span>
+            Three steps. <span className="gradient-text">Zero hassle.</span>
           </h2>
           <p className="text-lg text-[var(--color-neutral-700)] max-w-xl mx-auto">
             We built the most annoying part of selling into a single button.
@@ -228,7 +244,10 @@ function HowItWorks() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {steps.map((step, i) => (
-            <div key={i} className={`card card-hover ${step.rotate} flex flex-col gap-4`}>
+            <div
+              key={i}
+              className={`card card-hover ${step.rotate} flex flex-col gap-4`}
+            >
               <div
                 className={`w-14 h-14 ${step.color} border-2 border-[var(--color-neutral-black)] rounded-xl flex items-center justify-center text-2xl shadow-brutal-sm`}
               >
@@ -237,18 +256,20 @@ function HowItWorks() {
               <div className="flex items-center gap-2">
                 <span
                   className="text-xs font-bold text-[var(--color-neutral-500)] tracking-widest uppercase"
-                  style={{ fontFamily: 'var(--font-family-mono)' }}
+                  style={{ fontFamily: "var(--font-family-mono)" }}
                 >
                   Step {i + 1}
                 </span>
               </div>
               <h3
                 className="text-xl font-bold"
-                style={{ fontFamily: 'var(--font-family-display)' }}
+                style={{ fontFamily: "var(--font-family-display)" }}
               >
                 {step.title}
               </h3>
-              <p className="text-[var(--color-neutral-700)] leading-relaxed">{step.desc}</p>
+              <p className="text-[var(--color-neutral-700)] leading-relaxed">
+                {step.desc}
+              </p>
             </div>
           ))}
         </div>
@@ -263,38 +284,38 @@ function AgentDemo() {
   const activities = [
     {
       icon: <Phone className="w-4 h-4 text-white" />,
-      bg: 'bg-[var(--color-primary)]',
-      title: 'Calling Joe\'s Pawn Shop...',
-      sub: 'ElevenLabs voice AI on the line',
-      status: 'Connecting',
-      statusClass: 'badge-warning',
+      bg: "bg-[var(--color-primary)]",
+      title: "Calling Joe's Pawn Shop...",
+      sub: "ElevenLabs voice AI on the line",
+      status: "Connecting",
+      statusClass: "badge-warning",
       pulse: true,
     },
     {
       icon: <Package className="w-4 h-4 text-white" />,
-      bg: 'bg-[var(--color-secondary)]',
-      title: 'Listed on eBay',
-      sub: '47 people watching right now',
-      status: 'Live',
-      statusClass: 'badge-success',
+      bg: "bg-[var(--color-secondary)]",
+      title: "Listed on eBay",
+      sub: "47 people watching right now",
+      status: "Live",
+      statusClass: "badge-success",
       pulse: false,
     },
     {
       icon: <TrendingUp className="w-4 h-4 text-white" />,
-      bg: 'bg-[var(--color-accent-green)]',
-      title: 'Found offer: $450 from Best Buy',
-      sub: '22% above average market price',
-      status: 'Best offer',
-      statusClass: 'badge-success',
+      bg: "bg-[var(--color-accent-green)]",
+      title: "Found offer: $450 from Best Buy",
+      sub: "22% above average market price",
+      status: "Best offer",
+      statusClass: "badge-success",
       pulse: false,
     },
     {
       icon: <Calendar className="w-4 h-4 text-white" />,
-      bg: 'bg-[var(--color-accent-purple)]',
-      title: 'Appointment booked',
-      sub: 'Tomorrow at 2pm · GameStop nearby',
-      status: 'Confirmed',
-      statusClass: 'badge-info',
+      bg: "bg-[var(--color-accent-purple)]",
+      title: "Appointment booked",
+      sub: "Tomorrow at 2pm · GameStop nearby",
+      status: "Confirmed",
+      statusClass: "badge-info",
       pulse: false,
     },
   ];
@@ -305,8 +326,9 @@ function AgentDemo() {
       <div
         className="absolute inset-0 opacity-10 pointer-events-none"
         style={{
-          backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)',
-          backgroundSize: '40px 40px',
+          backgroundImage:
+            "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)",
+          backgroundSize: "40px 40px",
         }}
       />
 
@@ -318,13 +340,14 @@ function AgentDemo() {
           </div>
           <h2
             className="text-4xl sm:text-5xl font-extrabold text-white mb-4"
-            style={{ fontFamily: 'var(--font-family-display)' }}
+            style={{ fontFamily: "var(--font-family-display)" }}
           >
-            Your AI sales team,{' '}
+            Your AI sales team,{" "}
             <span className="gradient-text">always working</span>
           </h2>
           <p className="text-lg text-[var(--color-neutral-300)] max-w-xl mx-auto">
-            While you're doing literally anything else, our agents are grinding for you.
+            While you're doing literally anything else, our agents are grinding
+            for you.
           </p>
         </div>
 
@@ -332,23 +355,27 @@ function AgentDemo() {
           {activities.map((a, i) => (
             <div
               key={i}
-              className={`bg-[var(--color-neutral-900)] border-2 border-[var(--color-neutral-700)] border-l-[4px] border-l-[var(--color-primary)] rounded-xl p-4 shadow-brutal card-hover flex items-start gap-4 ${i % 2 === 0 ? 'rotate-slight' : 'rotate-slight-reverse'}`}
+              className={`bg-[var(--color-neutral-900)] border-2 border-[var(--color-neutral-700)] border-l-[4px] border-l-[var(--color-primary)] rounded-xl p-4 shadow-brutal card-hover flex items-start gap-4 ${i % 2 === 0 ? "rotate-slight" : "rotate-slight-reverse"}`}
             >
               <div
-                className={`w-10 h-10 ${a.bg} rounded-lg border-2 border-[var(--color-neutral-black)] flex items-center justify-center shrink-0 ${a.pulse ? 'agent-active' : ''}`}
+                className={`w-10 h-10 ${a.bg} rounded-lg border-2 border-[var(--color-neutral-black)] flex items-center justify-center shrink-0 ${a.pulse ? "agent-active" : ""}`}
               >
                 {a.icon}
               </div>
               <div className="flex-1 min-w-0">
                 <p
                   className="text-white font-semibold text-sm truncate"
-                  style={{ fontFamily: 'var(--font-family-display)' }}
+                  style={{ fontFamily: "var(--font-family-display)" }}
                 >
                   {a.title}
                 </p>
-                <p className="text-[var(--color-neutral-500)] text-xs mt-0.5">{a.sub}</p>
+                <p className="text-[var(--color-neutral-500)] text-xs mt-0.5">
+                  {a.sub}
+                </p>
               </div>
-              <span className={`badge ${a.statusClass} shrink-0 text-xs`}>{a.status}</span>
+              <span className={`badge ${a.statusClass} shrink-0 text-xs`}>
+                {a.status}
+              </span>
             </div>
           ))}
         </div>
@@ -361,15 +388,31 @@ function AgentDemo() {
 
 function PriceComparison() {
   const localOffers = [
-    { store: "Joe's Pawn Shop", address: '0.4 mi · Brooklyn, NY', price: 320, cash: true },
-    { store: 'GameStop', address: '1.2 mi · Brooklyn, NY', price: 280, cash: false },
-    { store: 'Best Buy Trade-In', address: '2.1 mi · Manhattan, NY', price: 450, cash: true, best: true },
+    {
+      store: "Joe's Pawn Shop",
+      address: "0.4 mi · Brooklyn, NY",
+      price: 320,
+      cash: true,
+    },
+    {
+      store: "GameStop",
+      address: "1.2 mi · Brooklyn, NY",
+      price: 280,
+      cash: false,
+    },
+    {
+      store: "Best Buy Trade-In",
+      address: "2.1 mi · Manhattan, NY",
+      price: 450,
+      cash: true,
+      best: true,
+    },
   ];
 
   const onlineOffers = [
-    { platform: 'eBay (auction)', viewers: 47, price: 410, live: true },
-    { platform: 'Facebook Marketplace', viewers: 12, price: 390, live: false },
-    { platform: 'Shopify Store', viewers: 8, price: 480, live: true },
+    { platform: "eBay (auction)", viewers: 47, price: 410, live: true },
+    { platform: "Facebook Marketplace", viewers: 12, price: 390, live: false },
+    { platform: "Shopify Store", viewers: 8, price: 480, live: true },
   ];
 
   return (
@@ -378,14 +421,14 @@ function PriceComparison() {
         <div className="text-center mb-14">
           <h2
             className="text-4xl sm:text-5xl font-extrabold mb-4"
-            style={{ fontFamily: 'var(--font-family-display)' }}
+            style={{ fontFamily: "var(--font-family-display)" }}
           >
-            Stop leaving{' '}
+            Stop leaving{" "}
             <span className="gradient-text">money on the table</span>
           </h2>
           <p className="text-lg text-[var(--color-neutral-700)] max-w-xl mx-auto">
-            FlipKit finds <strong>every</strong> option so you can pick the best one.
-            Real example: iPhone 13 Pro
+            FlipKit finds <strong>every</strong> option so you can pick the best
+            one. Real example: iPhone 13 Pro
           </p>
         </div>
 
@@ -394,7 +437,7 @@ function PriceComparison() {
           <div className="card rotate-slight">
             <h3
               className="font-bold text-lg mb-4 flex items-center gap-2"
-              style={{ fontFamily: 'var(--font-family-display)' }}
+              style={{ fontFamily: "var(--font-family-display)" }}
             >
               <MapPin className="w-5 h-5 text-[var(--color-primary)]" />
               Local Stores
@@ -405,28 +448,34 @@ function PriceComparison() {
                   key={i}
                   className={`flex items-center justify-between p-3 rounded-lg border-2 ${
                     o.best
-                      ? 'border-[var(--color-accent-green)] bg-[color-mix(in_srgb,var(--color-accent-green)_8%,transparent)]'
-                      : 'border-[var(--color-neutral-300)] bg-[var(--color-neutral-50)]'
+                      ? "border-[var(--color-accent-green)] bg-[color-mix(in_srgb,var(--color-accent-green)_8%,transparent)]"
+                      : "border-[var(--color-neutral-300)] bg-[var(--color-neutral-50)]"
                   }`}
                 >
                   <div>
                     <p
                       className="font-semibold text-sm"
-                      style={{ fontFamily: 'var(--font-family-display)' }}
+                      style={{ fontFamily: "var(--font-family-display)" }}
                     >
                       {o.store}
                       {o.best && (
-                        <span className="ml-2 badge badge-success text-xs">Best offer ⭐</span>
+                        <span className="ml-2 badge badge-success text-xs">
+                          Best offer ⭐
+                        </span>
                       )}
                     </p>
-                    <p className="text-xs text-[var(--color-neutral-500)] mt-0.5">{o.address}</p>
+                    <p className="text-xs text-[var(--color-neutral-500)] mt-0.5">
+                      {o.address}
+                    </p>
                     {o.cash && (
-                      <span className="badge badge-warning text-xs mt-1">Cash payment</span>
+                      <span className="badge badge-warning text-xs mt-1">
+                        Cash payment
+                      </span>
                     )}
                   </div>
                   <span
-                    className={`text-2xl font-bold ${o.best ? 'text-[var(--color-accent-green)]' : 'text-[var(--color-neutral-black)]'}`}
-                    style={{ fontFamily: 'var(--font-family-mono)' }}
+                    className={`text-2xl font-bold ${o.best ? "text-[var(--color-accent-green)]" : "text-[var(--color-neutral-black)]"}`}
+                    style={{ fontFamily: "var(--font-family-mono)" }}
                   >
                     ${o.price}
                   </span>
@@ -439,7 +488,7 @@ function PriceComparison() {
           <div className="card rotate-slight-reverse">
             <h3
               className="font-bold text-lg mb-4 flex items-center gap-2"
-              style={{ fontFamily: 'var(--font-family-display)' }}
+              style={{ fontFamily: "var(--font-family-display)" }}
             >
               <Package className="w-5 h-5 text-[var(--color-secondary)]" />
               Online Marketplaces
@@ -453,7 +502,7 @@ function PriceComparison() {
                   <div>
                     <p
                       className="font-semibold text-sm"
-                      style={{ fontFamily: 'var(--font-family-display)' }}
+                      style={{ fontFamily: "var(--font-family-display)" }}
                     >
                       {o.platform}
                     </p>
@@ -462,12 +511,14 @@ function PriceComparison() {
                       {o.viewers} people watching
                     </p>
                     {o.live && (
-                      <span className="badge badge-success text-xs mt-1">Listed · Live</span>
+                      <span className="badge badge-success text-xs mt-1">
+                        Listed · Live
+                      </span>
                     )}
                   </div>
                   <span
                     className="text-2xl font-bold text-[var(--color-neutral-black)]"
-                    style={{ fontFamily: 'var(--font-family-mono)' }}
+                    style={{ fontFamily: "var(--font-family-mono)" }}
                   >
                     ${o.price}
                   </span>
@@ -482,7 +533,7 @@ function PriceComparison() {
           <div>
             <p
               className="font-bold text-lg"
-              style={{ fontFamily: 'var(--font-family-display)' }}
+              style={{ fontFamily: "var(--font-family-display)" }}
             >
               🎯 FlipKit found you 6 offers in under 3 minutes
             </p>
@@ -491,10 +542,15 @@ function PriceComparison() {
             </p>
           </div>
           <div className="text-right shrink-0">
-            <p className="text-xs text-[var(--color-neutral-500)] uppercase tracking-wider" style={{ fontFamily: 'var(--font-family-mono)' }}>Best offer</p>
+            <p
+              className="text-xs text-[var(--color-neutral-500)] uppercase tracking-wider"
+              style={{ fontFamily: "var(--font-family-mono)" }}
+            >
+              Best offer
+            </p>
             <p
               className="text-4xl font-bold text-[var(--color-accent-green)]"
-              style={{ fontFamily: 'var(--font-family-mono)' }}
+              style={{ fontFamily: "var(--font-family-mono)" }}
             >
               $480
             </p>
@@ -511,51 +567,51 @@ function Features() {
   const features = [
     {
       icon: <Search className="w-6 h-6" />,
-      emoji: '🔍',
-      title: 'Web Search',
-      desc: 'Scours the internet for comparable prices so you know exactly what your item is worth.',
-      rotate: 'rotate-slight',
-      accent: 'var(--color-primary)',
+      emoji: "🔍",
+      title: "Web Search",
+      desc: "Scours the internet for comparable prices so you know exactly what your item is worth.",
+      rotate: "rotate-slight",
+      accent: "var(--color-primary)",
     },
     {
       icon: <Phone className="w-6 h-6" />,
-      emoji: '☎️',
-      title: 'AI Phone Calls',
-      desc: 'Our ElevenLabs voice agent literally calls local stores and gets you real offers. No joke.',
-      rotate: 'rotate-slight-reverse',
-      accent: 'var(--color-secondary)',
+      emoji: "☎️",
+      title: "AI Phone Calls",
+      desc: "Our ElevenLabs voice agent literally calls local stores and gets you real offers. No joke.",
+      rotate: "rotate-slight-reverse",
+      accent: "var(--color-secondary)",
     },
     {
       icon: <Package className="w-6 h-6" />,
-      emoji: '📦',
-      title: 'Auto-Listing',
-      desc: 'Writes the description, picks the price, lists on eBay and Shopify. Done while you nap.',
-      rotate: 'rotate-slight',
-      accent: 'var(--color-accent-green)',
+      emoji: "📦",
+      title: "Auto-Listing",
+      desc: "Writes the description, picks the price, lists on eBay and Shopify. Done while you nap.",
+      rotate: "rotate-slight",
+      accent: "var(--color-accent-green)",
     },
     {
       icon: <Calendar className="w-6 h-6" />,
-      emoji: '📅',
-      title: 'Smart Scheduling',
-      desc: 'Books drop-off appointments at the best local stores. You just show up and collect cash.',
-      rotate: 'rotate-slight-reverse',
-      accent: 'var(--color-accent-yellow)',
+      emoji: "📅",
+      title: "Smart Scheduling",
+      desc: "Books drop-off appointments at the best local stores. You just show up and collect cash.",
+      rotate: "rotate-slight-reverse",
+      accent: "var(--color-accent-yellow)",
     },
     {
       icon: <TrendingUp className="w-6 h-6" />,
-      emoji: '💡',
-      title: 'Smart Recommendations',
-      desc: 'Tells you exactly where and how to sell for maximum payout. No second-guessing.',
-      rotate: 'rotate-slight',
-      accent: 'var(--color-accent-purple)',
+      emoji: "💡",
+      title: "Smart Recommendations",
+      desc: "Tells you exactly where and how to sell for maximum payout. No second-guessing.",
+      rotate: "rotate-slight",
+      accent: "var(--color-accent-purple)",
     },
     {
       icon: <Zap className="w-6 h-6" />,
-      emoji: '⚡',
-      title: 'Instant Results',
-      desc: 'From photo to first offer in under 3 minutes. Speed is the whole point.',
-      rotate: 'rotate-slight-reverse',
-      accent: 'var(--color-primary)',
+      emoji: "⚡",
+      title: "Instant Results",
+      desc: "From photo to first offer in under 3 minutes. Speed is the whole point.",
+      rotate: "rotate-slight-reverse",
+      accent: "var(--color-primary)",
     },
   ];
 
@@ -565,9 +621,9 @@ function Features() {
         <div className="text-center mb-14">
           <h2
             className="text-4xl sm:text-5xl font-extrabold mb-4"
-            style={{ fontFamily: 'var(--font-family-display)' }}
+            style={{ fontFamily: "var(--font-family-display)" }}
           >
-            Everything you need.{' '}
+            Everything you need.{" "}
             <span className="gradient-text">Nothing you don't.</span>
           </h2>
           <p className="text-lg text-[var(--color-neutral-700)]">
@@ -580,17 +636,19 @@ function Features() {
             <div key={i} className={`card card-hover ${f.rotate}`}>
               <div
                 className="w-12 h-12 rounded-lg border-2 border-[var(--color-neutral-black)] flex items-center justify-center text-xl mb-4 shadow-brutal-sm"
-                style={{ backgroundColor: f.accent + '22', color: f.accent }}
+                style={{ backgroundColor: f.accent + "22", color: f.accent }}
               >
                 {f.emoji}
               </div>
               <h3
                 className="font-bold text-lg mb-2"
-                style={{ fontFamily: 'var(--font-family-display)' }}
+                style={{ fontFamily: "var(--font-family-display)" }}
               >
                 {f.title}
               </h3>
-              <p className="text-sm text-[var(--color-neutral-700)] leading-relaxed">{f.desc}</p>
+              <p className="text-sm text-[var(--color-neutral-700)] leading-relaxed">
+                {f.desc}
+              </p>
             </div>
           ))}
         </div>
@@ -603,19 +661,19 @@ function Features() {
 
 function PainPoints() {
   const pains = [
-    'No more posting to 10 different marketplaces',
-    'No more calling stores for quotes',
-    'No more wondering if you got a good deal',
-    'No more wasting weekends at yard sales',
-    'No more lowball offers with zero context',
-    'No more listing photos with bad lighting',
+    "No more posting to 10 different marketplaces",
+    "No more calling stores for quotes",
+    "No more wondering if you got a good deal",
+    "No more wasting weekends at yard sales",
+    "No more lowball offers with zero context",
+    "No more listing photos with bad lighting",
   ];
 
   const wins = [
-    { stat: '$2.4M+', label: 'in items sold' },
-    { stat: '12,000+', label: 'sellers using FlipKit' },
-    { stat: '3 min', label: 'avg. time to first offer' },
-    { stat: '94%', label: 'get more than expected' },
+    { stat: "$2.4M+", label: "in items sold" },
+    { stat: "12,000+", label: "sellers using FlipKit" },
+    { stat: "3 min", label: "avg. time to first offer" },
+    { stat: "94%", label: "get more than expected" },
   ];
 
   return (
@@ -628,16 +686,16 @@ function PainPoints() {
           <div>
             <h2
               className="text-4xl font-extrabold mb-8"
-              style={{ fontFamily: 'var(--font-family-display)' }}
+              style={{ fontFamily: "var(--font-family-display)" }}
             >
-              Selling stuff shouldn't feel like{' '}
+              Selling stuff shouldn't feel like{" "}
               <span className="gradient-text">a second job.</span>
             </h2>
             <div className="flex flex-col gap-3">
               {pains.map((pain, i) => (
                 <div
                   key={i}
-                  className={`flex items-center gap-3 p-3 bg-[var(--color-neutral-white)] border-2 border-[var(--color-neutral-black)] rounded-lg shadow-brutal-sm ${i % 2 === 0 ? 'rotate-slight' : 'rotate-slight-reverse'}`}
+                  className={`flex items-center gap-3 p-3 bg-[var(--color-neutral-white)] border-2 border-[var(--color-neutral-black)] rounded-lg shadow-brutal-sm ${i % 2 === 0 ? "rotate-slight" : "rotate-slight-reverse"}`}
                 >
                   <CheckCircle className="w-5 h-5 text-[var(--color-accent-green)] shrink-0" />
                   <span className="font-medium text-sm">{pain}</span>
@@ -652,15 +710,17 @@ function PainPoints() {
               {wins.map((w, i) => (
                 <div
                   key={i}
-                  className={`card card-hover text-center ${i % 2 === 0 ? 'rotate-slight' : 'rotate-slight-reverse'}`}
+                  className={`card card-hover text-center ${i % 2 === 0 ? "rotate-slight" : "rotate-slight-reverse"}`}
                 >
                   <p
                     className="text-4xl font-extrabold gradient-text mb-1"
-                    style={{ fontFamily: 'var(--font-family-display)' }}
+                    style={{ fontFamily: "var(--font-family-display)" }}
                   >
                     {w.stat}
                   </p>
-                  <p className="text-sm text-[var(--color-neutral-700)]">{w.label}</p>
+                  <p className="text-sm text-[var(--color-neutral-700)]">
+                    {w.label}
+                  </p>
                 </div>
               ))}
             </div>
@@ -669,16 +729,19 @@ function PainPoints() {
             <div className="mt-6 card shadow-brutal-color border-[var(--color-primary)] rotate-slight-reverse">
               <div className="flex gap-1 mb-2">
                 {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-4 h-4 fill-[var(--color-accent-yellow)] text-[var(--color-accent-yellow)]" />
+                  <Star
+                    key={i}
+                    className="w-4 h-4 fill-[var(--color-accent-yellow)] text-[var(--color-accent-yellow)]"
+                  />
                 ))}
               </div>
               <p className="text-sm italic text-[var(--color-neutral-700)] mb-3">
-                "I uploaded a photo of my old PS5. 4 minutes later I had 8 offers and an
-                appointment booked for tomorrow. This is insane."
+                "I uploaded a photo of my old PS5. 4 minutes later I had 8
+                offers and an appointment booked for tomorrow. This is insane."
               </p>
               <p
                 className="text-xs font-bold text-[var(--color-neutral-500)]"
-                style={{ fontFamily: 'var(--font-family-mono)' }}
+                style={{ fontFamily: "var(--font-family-mono)" }}
               >
                 — Marcus T., sold $1,200 in 2 weeks
               </p>
@@ -701,7 +764,8 @@ function FinalCTA() {
       <div
         className="absolute top-0 right-0 w-96 h-96 rounded-full opacity-10 pointer-events-none"
         style={{
-          background: 'radial-gradient(circle, var(--color-primary) 0%, transparent 70%)',
+          background:
+            "radial-gradient(circle, var(--color-primary) 0%, transparent 70%)",
         }}
       />
 
@@ -713,19 +777,21 @@ function FinalCTA() {
 
         <h2
           className="text-5xl sm:text-6xl font-extrabold text-white mb-6"
-          style={{ fontFamily: 'var(--font-family-display)', letterSpacing: '-0.03em' }}
+          style={{
+            fontFamily: "var(--font-family-display)",
+            letterSpacing: "-0.03em",
+          }}
         >
-          Ready to sell{' '}
-          <span className="gradient-text">smarter?</span>
+          Ready to sell <span className="gradient-text">smarter?</span>
         </h2>
 
         <p className="text-xl text-[var(--color-neutral-300)] mb-10 max-w-xl mx-auto">
-          Join thousands of sellers who stopped leaving money on the table.
-          One photo. That's all it takes.
+          Join thousands of sellers who stopped leaving money on the table. One
+          photo. That's all it takes.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <SignUpButton mode="modal" fallbackRedirectUrl="/dashboard">
+          <SignUpButton mode="modal" forceRedirectUrl="/home">
             <button className="btn btn-primary text-lg px-10 py-4">
               <Camera className="w-5 h-5" />
               Get Started Free
@@ -735,13 +801,13 @@ function FinalCTA() {
         </div>
 
         <p className="mt-6 text-sm text-[var(--color-neutral-500)]">
-          Join sellers who've sold{' '}
+          Join sellers who've sold{" "}
           <span
             className="text-[var(--color-accent-green)] font-bold"
-            style={{ fontFamily: 'var(--font-family-mono)' }}
+            style={{ fontFamily: "var(--font-family-mono)" }}
           >
             $2,400,000+
-          </span>{' '}
+          </span>{" "}
           in items
         </p>
       </div>
@@ -761,7 +827,7 @@ function Footer() {
           </div>
           <span
             className="font-bold"
-            style={{ fontFamily: 'var(--font-family-display)' }}
+            style={{ fontFamily: "var(--font-family-display)" }}
           >
             FlipKit
           </span>
@@ -770,9 +836,24 @@ function Footer() {
           © 2024 FlipKit. Built for hustlers.
         </p>
         <div className="flex gap-4 text-sm text-[var(--color-neutral-500)]">
-          <a href="#" className="hover:text-[var(--color-primary)] transition-colors">Privacy</a>
-          <a href="#" className="hover:text-[var(--color-primary)] transition-colors">Terms</a>
-          <a href="#" className="hover:text-[var(--color-primary)] transition-colors">Contact</a>
+          <a
+            href="#"
+            className="hover:text-[var(--color-primary)] transition-colors"
+          >
+            Privacy
+          </a>
+          <a
+            href="#"
+            className="hover:text-[var(--color-primary)] transition-colors"
+          >
+            Terms
+          </a>
+          <a
+            href="#"
+            className="hover:text-[var(--color-primary)] transition-colors"
+          >
+            Contact
+          </a>
         </div>
       </div>
     </footer>
