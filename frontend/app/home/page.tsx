@@ -153,7 +153,7 @@ export default function HomePage() {
     if (!analysisResult?.analysis_id) return;
     try {
       const token = await getToken();
-      const apiUrl = const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
       const res = await fetch(`${apiUrl}/api/negotiate`, {
         method: 'POST',
         headers: {
