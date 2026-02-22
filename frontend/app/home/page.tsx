@@ -334,13 +334,18 @@ export default function HomePage() {
           {/* ── Results ── */}
           {state === 'results' && analysisResult && (
             <div className="flex flex-col gap-4">
-              <div className="card p-3">
+              <div className="card p-3 relative">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={preview!}
                   alt="Your item"
                   className="w-full rounded-lg border-2 border-[var(--color-neutral-black)] object-cover max-h-48"
                 />
+                <div className="absolute bottom-5 left-5 right-5">
+                  <span className="inline-block bg-neutral-black text-white text-xs font-semibold px-2.5 py-1 rounded-md" style={{ fontFamily: 'var(--font-family-display)' }}>
+                    {analysisResult.item_name}
+                  </span>
+                </div>
               </div>
 
               <div className="card p-4">
