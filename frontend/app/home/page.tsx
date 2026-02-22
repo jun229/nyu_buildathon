@@ -13,7 +13,7 @@ type UploadState = 'idle' | 'preview' | 'analyzing' | 'results' | 'error';
 interface AnalysisResult {
   image_url: string;
   item_name: string;
-  estimated_price_range: { min: number; max: number; currency: string };
+  estimated_price_range: { low: number; fair: number; high: number; currency: string };
   best_platform: string;
   platforms: Array<{
     name: string;
@@ -312,7 +312,7 @@ export default function HomePage() {
                   Estimated Value
                 </p>
                 <p className="text-3xl font-extrabold" style={{ fontFamily: 'var(--font-family-display)' }}>
-                  {formatPrice(analysisResult.estimated_price_range.min)} – {formatPrice(analysisResult.estimated_price_range.max)}
+                  {formatPrice(analysisResult.estimated_price_range.low)} – {formatPrice(analysisResult.estimated_price_range.high)}
                 </p>
                 <p className="text-sm text-[var(--color-neutral-500)] mt-1">
                   Best on{' '}
