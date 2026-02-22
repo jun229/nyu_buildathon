@@ -3,3 +3,5 @@ anthropic>=0.34.0
 openai>=1.40.0
 python-dotenv>=1.0.0
 asyncio
+google-search-results>=2.4.2
+exa_py>=1.0.0
