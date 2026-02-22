@@ -18,8 +18,10 @@ from typing import Any
 
 import anthropic
 from dotenv import load_dotenv
+from exa_py import Exa
 from langgraph.graph import END, StateGraph
 from openai import AsyncOpenAI
+from serpapi import GoogleSearch
 from typing_extensions import TypedDict
 
 load_dotenv()
@@ -34,6 +36,8 @@ nvidia_client = AsyncOpenAI(
     base_url="https://integrate.api.nvidia.com/v1",
     api_key=os.environ.get("NVIDIA_API_KEY"),
 )
+
+exa_client = Exa(api_key=os.environ.get("EXA_API_KEY"))
 
 # ---------------------------------------------------------------------------
 # Image Helper
@@ -169,41 +173,77 @@ def vision_node(state: AgentState) -> AgentState:
 # Node 2 — Swarm (7 × NVIDIA Nemotron via AsyncOpenAI)
 # ---------------------------------------------------------------------------
 
+# Mapping from task source → site: operator / Exa domain
+_PRICE_SITE_OPERATORS: dict[str, str] = {
+    "eBay": "site:ebay.com",
+    "Craigslist": "site:craigslist.org",
+    "Facebook Marketplace": "site:facebook.com/marketplace",
+}
 
-def _build_prompt(task: dict[str, str], identified_item: str) -> str:
-    """Build a worker-type-specific prompt + mock data for Nemotron."""
+_SOCIAL_DOMAINS: dict[str, str] = {
+    "Reddit": "reddit.com",
+    "Twitter": "twitter.com",
+}
+
+
+async def _fetch_price_data(source: str, identified_item: str) -> str:
+    """
+    Live SerpApi call using the standard Google engine + site: operator.
+    Wrapped in asyncio.to_thread so the sync client doesn't block the event loop.
+    """
+    site_op = _PRICE_SITE_OPERATORS.get(source, "")
+    query = f"{identified_item} {site_op} for sale price"
+
+    def _sync_call() -> str:
+        params = {
+            "engine": "google",
+            "q": query,
+            "api_key": os.environ.get("SERPI_API_KEY"),
+        }
+        search = GoogleSearch(params)
+        return json.dumps(search.get_dict())
+
+    return await asyncio.to_thread(_sync_call)
+
+
+async def _fetch_social_data(source: str, identified_item: str) -> str:
+    """
+    Live Exa call filtered to a single social domain.
+    Wrapped in asyncio.to_thread so the sync client doesn't block the event loop.
+    """
+    domain = _SOCIAL_DOMAINS.get(source, "reddit.com")
+
+    def _sync_call() -> str:
+        results = exa_client.search_and_contents(
+            identified_item,
+            type="auto",
+            include_domains=[domain],
+            contents={"text": {"max_characters": 3000}},
+        )
+        return str(results)
+
+    return await asyncio.to_thread(_sync_call)
+
+
+def _build_prompt(task: dict[str, str], identified_item: str, live_data: str | None) -> str:
+    """Build a worker-type-specific prompt for Nemotron, injecting live_data for price/social."""
     url = task["url"].replace("{item}", identified_item.replace(" ", "+"))
 
     if task["worker_type"] == "price":
-        mock_data = (
-            f"Mock listings from {task['source']} for '{identified_item}':\n"
-            "Listing 1: $3,299.00 — good condition, ships nationwide\n"
-            "Listing 2: $3,050.00 — used, local pickup only\n"
-            "Listing 3: $3,499.99 — new in box, sealed\n"
-            "Listing 4: $2,850.00 — scratched frame, otherwise functional\n"
-            "Listing 5: $3,100.00 — like new, under 50 miles\n"
-        )
         return (
-            f"You are a price intelligence agent. Analyse these mock search results.\n\n"
+            f"You are a price intelligence agent. Analyse this live Google search result.\n\n"
             f"Item: {identified_item}\nSource: {task['source']}\nURL: {url}\n\n"
-            f"Data:\n{mock_data}\n\n"
+            f"Raw search data:\n{live_data}\n\n"
             "Return ONLY valid JSON with exactly these keys:\n"
             "  source (string), listings (array of objects with title/price/condition),\n"
             "  lowest_price (number), highest_price (number), average_price (number)"
         )
 
     elif task["worker_type"] == "social":
-        mock_data = (
-            f"Mock {task['source']} posts about '{identified_item}':\n"
-            "Post 1 (upvotes: 342): 'Finally sold mine for $3,200 after 3 days — market is hot'\n"
-            "Post 2 (upvotes: 128): 'Paid $3,400 new; used ones moving for $2,900–$3,100'\n"
-            "Post 3 (upvotes: 89): 'LFS offering $2,600 trade-in — seems low, go private'\n"
-            "Post 4 (upvotes: 67): 'Demand strong heading into spring riding season'\n"
-        )
         return (
-            f"You are a social sentiment agent. Analyse these mock {task['source']} posts.\n\n"
+            f"You are a social sentiment agent. Analyse this live {task['source']} data.\n\n"
             f"Item: {identified_item}\nPlatform: {task['source']}\nURL: {url}\n\n"
-            f"Data:\n{mock_data}\n\n"
+            f"Raw results:\n{live_data}\n\n"
             "Return ONLY valid JSON with exactly these keys:\n"
             "  platform (string), overall_sentiment (string: positive/neutral/negative),\n"
             "  liquidity (string: high/medium/low), average_days_to_sell (number),\n"
@@ -243,7 +283,14 @@ async def _run_swarm_worker(task: dict[str, str], identified_item: str) -> dict[
     """Run a single Nemotron sub-agent for a given swarm task."""
     print(f"  [SWARM] {task['worker_type'].upper()} worker → {task['source']}")
 
-    prompt = _build_prompt(task, identified_item)
+    if task["worker_type"] == "price":
+        live_data = await _fetch_price_data(task["source"], identified_item)
+    elif task["worker_type"] == "social":
+        live_data = await _fetch_social_data(task["source"], identified_item)
+    else:
+        live_data = None  # places workers use their own mock data
+
+    prompt = _build_prompt(task, identified_item, live_data)
 
     completion = await nvidia_client.chat.completions.create(
         model="nvidia/nemotron-3-nano-30b-a3b",
