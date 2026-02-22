@@ -14,7 +14,7 @@ import asyncio
 import base64
 import json
 import os
-from typing import Any
+from typing import Any, Optional
 
 import anthropic
 from dotenv import load_dotenv
@@ -225,7 +225,7 @@ async def _fetch_social_data(source: str, identified_item: str) -> str:
     return await asyncio.to_thread(_sync_call)
 
 
-def _build_prompt(task: dict[str, str], identified_item: str, live_data: str | None) -> str:
+def _build_prompt(task: dict[str, str], identified_item: str, live_data: Optional[str]) -> str:
     """Build a worker-type-specific prompt for Nemotron, injecting live_data for price/social."""
     url = task["url"].replace("{item}", identified_item.replace(" ", "+"))
 
