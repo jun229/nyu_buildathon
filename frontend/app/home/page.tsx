@@ -8,11 +8,23 @@ import { formatPrice } from '@/lib/utils';
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 
-type UploadState = 'idle' | 'preview' | 'analyzing' | 'results' | 'error';
+type UploadState = 'idle' | 'preview' | 'analyzing' | 'results' | 'calling' | 'error';
+
+interface NegotiationStrategy {
+  opening_price: number;
+  target_price: number;
+  walk_away_price: number;
+  opening_script: string;
+  counter_script: string;
+  accept_script: string;
+  walk_away_script: string;
+}
 
 interface AnalysisResult {
+  analysis_id: string;
   image_url: string;
   item_name: string;
+  item_description: string;
   estimated_price_range: { low: number; fair: number; high: number; currency: string };
   best_platform: string;
   platforms: Array<{
@@ -25,11 +37,11 @@ interface AnalysisResult {
     name: string;
     address: string;
     phone: string;
-    distance_miles: number;
     specialty: string;
   }>;
   condition_tips: string[];
   confidence: number;
+  negotiation_strategy: NegotiationStrategy | null;
 }
 
 /* ─── Navbar ─────────────────────────────────────────────────────────────── */
@@ -66,6 +78,7 @@ export default function HomePage() {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [jobId, setJobId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -135,6 +148,29 @@ export default function HomePage() {
       setState('error');
     }
   }, [currentFile, getToken]);
+
+  const handleNegotiate = useCallback(async () => {
+    if (!analysisResult?.analysis_id) return;
+    try {
+      const token = await getToken();
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
+      const res = await fetch(`${apiUrl}/api/negotiate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ analysis_id: analysisResult.analysis_id }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const { job_id } = await res.json();
+      setJobId(job_id);
+      setState('calling');
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Something went wrong');
+      setState('error');
+    }
+  }, [analysisResult, getToken]);
 
   return (
     <div className="min-h-screen bg-[var(--color-neutral-50)] flex flex-col">
@@ -363,17 +399,9 @@ export default function HomePage() {
                     key={store.name}
                     className="flex flex-col gap-1 py-3 border-b border-neutral-200 last:border-0 last:pb-0"
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="font-semibold text-sm">{store.name}</p>
-                        <p className="text-xs text-neutral-500">{store.specialty}</p>
-                      </div>
-                      <span
-                        className="text-xs font-semibold text-neutral-500 shrink-0"
-                        style={{ fontFamily: 'var(--font-family-mono)' }}
-                      >
-                        {store.distance_miles} mi
-                      </span>
+                    <div className="flex flex-col gap-0.5">
+                      <p className="font-semibold text-sm">{store.name}</p>
+                      <p className="text-xs text-neutral-500">{store.specialty}</p>
                     </div>
                     <div className="flex items-center gap-4 mt-1">
                       <a
@@ -405,7 +433,10 @@ export default function HomePage() {
                   We'll reach out to each store, share your item details, and find out who's interested before you make the trip.
                 </p>
                 <div className="flex gap-3 mt-1">
-                  <button className="btn btn-primary flex-1 py-3 justify-center text-sm">
+                  <button
+                    onClick={handleNegotiate}
+                    className="btn btn-primary flex-1 py-3 justify-center text-sm"
+                  >
                     <Phone className="w-4 h-4" />
                     Yes, call them
                   </button>
@@ -414,6 +445,44 @@ export default function HomePage() {
                   </button>
                 </div>
               </div>
+
+              <button onClick={reset} className="btn btn-secondary w-full text-sm py-3 justify-center">
+                <Upload className="w-4 h-4" />
+                Analyze another item
+              </button>
+            </div>
+          )}
+
+          {/* ── Calling ── */}
+          {state === 'calling' && (
+            <div className="flex flex-col gap-4">
+              <div className="card p-6 flex flex-col items-center gap-4 text-center">
+                <div className="relative flex items-center justify-center w-16 h-16">
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-primary opacity-25 animate-ping" />
+                  <div className="w-14 h-14 rounded-full bg-primary border-2 border-neutral-black flex items-center justify-center shadow-brutal-sm">
+                    <Phone className="w-6 h-6 text-white" />
+                  </div>
+                </div>
+                <div>
+                  <p
+                    className="font-extrabold text-lg mb-1"
+                    style={{ fontFamily: 'var(--font-family-display)' }}
+                  >
+                    Our AI is calling stores
+                  </p>
+                  <p className="text-sm text-neutral-500">
+                    We&apos;ll negotiate the best deal for you.<br />
+                    Come back in about an hour.
+                  </p>
+                </div>
+              </div>
+
+              <Link
+                href={`/offers?job_id=${jobId}`}
+                className="btn btn-primary w-full text-sm py-3 justify-center"
+              >
+                Check my offers
+              </Link>
 
               <button onClick={reset} className="btn btn-secondary w-full text-sm py-3 justify-center">
                 <Upload className="w-4 h-4" />
