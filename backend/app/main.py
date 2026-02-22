@@ -52,7 +52,8 @@ async def auth_dependency(request: Request):
     if settings.environment == "development":
         request.state.credentials = type("_Creds", (), {"decoded": DEV_USER})()
         return
-    return await clerk_auth(request)
+    credentials = await clerk_auth(request)
+    request.state.credentials = credentials
 
 app = FastAPI(
     title="Buildathon API",
