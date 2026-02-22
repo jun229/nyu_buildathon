@@ -41,7 +41,12 @@ def _speaker_thread(
             break
 
 
-async def _resolve_conversation_id(client: httpx.AsyncClient, api_key: str, agent_id: str, hint: str | None) -> str | None:
+async def _resolve_conversation_id(
+    client: httpx.AsyncClient,
+    api_key: str,
+    agent_id: str,
+    hint: str | None,
+) -> str | None:
     """
     Return a conversation_id to analyze.
     - If hint is provided (captured from the WebSocket session), use it directly.
@@ -66,7 +71,7 @@ async def _resolve_conversation_id(client: httpx.AsyncClient, api_key: str, agen
     return conversations[0]["conversation_id"]
 
 
-async def fetch_and_analyze(conversation_id_hint: str | None):
+async def fetch_and_analyze(conversation_id_hint: str | None) -> None:
     """
     Resolve the target conversation (from WebSocket capture or agent history),
     poll until the transcript is ready (status == 'done'), then use Claude Haiku
@@ -78,9 +83,19 @@ async def fetch_and_analyze(conversation_id_hint: str | None):
     api_key = os.getenv("ELEVENLABS_API_KEY")
     agent_id = os.getenv("ELEVENLABS_AGENT_ID")
 
-    data = {}
+    # Bug fix: guard against missing env vars before making any API calls
+    if not api_key:
+        print("[Analysis] ELEVENLABS_API_KEY not set — skipping analysis.")
+        return
+    if not agent_id:
+        print("[Analysis] ELEVENLABS_AGENT_ID not set — skipping analysis.")
+        return
+
+    conv_data: dict = {}
     async with httpx.AsyncClient() as client:
-        conversation_id = await _resolve_conversation_id(client, api_key, agent_id, conversation_id_hint)
+        conversation_id = await _resolve_conversation_id(
+            client, api_key, agent_id, conversation_id_hint
+        )
         if not conversation_id:
             return
 
@@ -95,14 +110,14 @@ async def fetch_and_analyze(conversation_id_hint: str | None):
             if r.status_code != 200:
                 print(f"[Analysis] Error fetching transcript: HTTP {r.status_code}")
                 return
-            data = r.json()
-            if data.get("status") == "done":
+            conv_data = r.json()
+            if conv_data.get("status") == "done":
                 break
         else:
             print("[Analysis] Timed out waiting for transcript to be processed.")
             return
 
-    transcript = data.get("transcript", [])
+    transcript = conv_data.get("transcript", [])
     if not transcript:
         print("[Analysis] No transcript found in conversation.")
         return
@@ -145,13 +160,17 @@ async def fetch_and_analyze(conversation_id_hint: str | None):
         print(f"[Analysis] Raw response: {resp.content[0].text}")
 
 
-async def conversation_loop():
+async def conversation_loop() -> str | None:
+    """
+    Run the live voice conversation and return the captured conversation_id
+    (or None if it was never received) so the caller can run analysis.
+    """
     api_key = os.getenv("ELEVENLABS_API_KEY")
     agent_id = os.getenv("ELEVENLABS_AGENT_ID")
 
     if not api_key or not agent_id:
         print("Error: ELEVENLABS_API_KEY and ELEVENLABS_AGENT_ID must be set.")
-        return
+        return None
 
     url = f"wss://api.elevenlabs.io/v1/convai/conversation?agent_id={agent_id}"
 
@@ -288,13 +307,20 @@ async def conversation_loop():
         speaker_stream.close()
         pa.terminate()
 
-    # After the call ends, fetch & analyze the transcript.
-    # Pass the captured ID as a hint; falls back to fetching latest from agent history.
-    await fetch_and_analyze(session["conversation_id"])
+    return session["conversation_id"]
 
 
 if __name__ == "__main__":
+    # Bug fix: capture conversation_id from the loop so fetch_and_analyze
+    # runs even when the user ends the call with Ctrl+C.
+    captured_id: str | None = None
     try:
-        asyncio.run(conversation_loop())
+        captured_id = asyncio.run(conversation_loop())
     except KeyboardInterrupt:
         print("\nSession ended.")
+
+    # Always analyze — falls back to latest conversation if captured_id is None
+    try:
+        asyncio.run(fetch_and_analyze(captured_id))
+    except KeyboardInterrupt:
+        pass
