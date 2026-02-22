@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import { UserButton } from '@clerk/nextjs';
 import { Camera, Upload, X, Zap, ImageIcon, Phone, MapPin } from 'lucide-react';
 import Link from 'next/link';
@@ -64,8 +64,15 @@ export default function HomePage() {
   const [currentFile, setCurrentFile] = useState<File | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+    );
+  }, []);
 
   const handleFile = useCallback((file: File) => {
     if (!file.type.startsWith('image/')) return;
@@ -105,6 +112,9 @@ export default function HomePage() {
     try {
       const formData = new FormData();
       formData.append('file', currentFile);
+      if (coords) {
+        formData.append('ll', `@${coords.lat},${coords.lng}`);
+      }
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
       const response = await fetch(`${apiUrl}/api/analyze`, {
