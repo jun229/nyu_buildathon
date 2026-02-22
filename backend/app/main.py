@@ -48,9 +48,11 @@ clerk_auth = ClerkHTTPBearer(config=clerk_config, add_state=True)
 
 DEV_USER = {"sub": "dev-user-id", "email": "dev@localhost"}
 
+_WEBHOOK_PATHS = {"/api/agent/webhook", "/api/calls/webhook"}
+
 async def auth_dependency(request: Request):
-    """Skip Clerk auth in development mode."""
-    if settings.environment == "development":
+    """Skip Clerk auth in development mode or for webhook endpoints."""
+    if settings.environment == "development" or request.url.path in _WEBHOOK_PATHS:
         request.state.credentials = type("_Creds", (), {"decoded": DEV_USER})()
         return
     credentials = await clerk_auth(request)
@@ -129,6 +131,68 @@ class AnalyzeResponse(BaseModel):
     condition_tips: list[str]
     confidence: float                    # 0–1 based on swarm success rate
     processing_time_ms: int
+
+
+# ---- Calling models ----
+
+class StoreCallTarget(BaseModel):
+    id: str
+    name: str
+    phone_number: str                   # E.164 format: +15551234567
+    address: Optional[str] = None
+
+class CallContext(BaseModel):
+    item_name: str
+    item_description: str
+    condition: str
+    market_context: str
+    estimated_price_range: dict         # { low, fair, high, currency }
+    negotiation_strategy: NegotiationStrategy
+
+class BatchCallRequest(BaseModel):
+    call_name: str
+    stores: list[StoreCallTarget]
+    context: CallContext
+
+class SingleCallRequest(BaseModel):
+    store: StoreCallTarget
+    context: CallContext
+
+class CallOutcome(BaseModel):
+    store_id: str
+    store_name: str
+    phone_number: str
+    conversation_id: Optional[str] = None
+    agent_id: Optional[str] = None
+    call_status: str                    # "pending"|"in_progress"|"done"|"failed"
+    call_successful: Optional[str] = None   # from analysis: "success"|"failure"|"unknown"
+    willing_to_buy: Optional[bool] = None
+    offered_price: Optional[float] = None
+    transcript: list[dict] = []         # each item: role, message, time_in_call_secs, tool_calls, tool_results
+    summary: Optional[str] = None
+    call_summary_title: Optional[str] = None
+    evaluation_criteria_results: dict = {}
+    start_time_unix_secs: Optional[int] = None
+    call_duration_secs: Optional[float] = None
+
+class BatchCallStatus(BaseModel):
+    batch_id: str
+    status: str                         # "pending"|"in_progress"|"completed"|"failed"
+    call_name: str
+    total_scheduled: int
+    total_dispatched: int
+    total_finished: int
+    outcomes: list[CallOutcome]
+
+class SingleCallResponse(BaseModel):
+    conversation_id: str
+    call_sid: Optional[str] = None
+    store_name: str
+
+class ConversationInsight(BaseModel):
+    owner_name: Optional[str] = None    # name of the person who called
+    willing_to_sell: bool               # true = yes, false = no
+    offered_price: Optional[float] = None  # null if not willing to sell
 
 
 # ==================== HELPERS ====================
@@ -276,6 +340,152 @@ def _map_agent_state_to_response(
     )
 
 
+# ---- Calling helpers ----
+
+def _build_dynamic_variables(store: StoreCallTarget, ctx: CallContext) -> dict:
+    ns = ctx.negotiation_strategy
+    return {
+        "store_name": store.name,
+        "item_name": ctx.item_name,
+        "item_description": ctx.item_description,
+        "condition": ctx.condition,
+        "market_context": ctx.market_context,
+        "price_low":   str(ctx.estimated_price_range.get("low", 0)),
+        "price_fair":  str(ctx.estimated_price_range.get("fair", 0)),
+        "price_high":  str(ctx.estimated_price_range.get("high", 0)),
+        "opening_price":    str(ns.opening_price),
+        "target_price":     str(ns.target_price),
+        "walk_away_price":  str(ns.walk_away_price),
+        "opening_script":   ns.opening_script,
+        "counter_script":   ns.counter_script,
+        "accept_script":    ns.accept_script,
+        "walk_away_script": ns.walk_away_script,
+    }
+
+
+async def _fetch_conversation(conversation_id: str) -> dict:
+    async with httpx.AsyncClient() as client:
+        r = await client.get(
+            f"https://api.elevenlabs.io/v1/convai/conversations/{conversation_id}",
+            headers={"xi-api-key": settings.elevenlabs_api_key},
+        )
+        r.raise_for_status()
+        return r.json()
+
+
+async def _parse_transcript(transcript: list[dict]) -> tuple[Optional[bool], Optional[float]]:
+    """Use Claude Haiku to extract yes/no + price when data_collection is not configured."""
+    import anthropic
+    text = "\n".join(
+        f"{t.get('role','?')}: {t.get('message','')}" for t in transcript
+    )
+    client = anthropic.Anthropic()
+    resp = client.messages.create(
+        model="claude-haiku-4-5",
+        max_tokens=100,
+        messages=[{"role": "user", "content": (
+            "Transcript of a call where an agent is trying to sell an item to a store. "
+            "Did the store agree to buy it? What price did they offer?\n\n"
+            f"{text}\n\n"
+            'Respond with JSON only: {"willing_to_buy": true/false/null, "offered_price": number/null}'
+        )}],
+    )
+    try:
+        r = json.loads(resp.content[0].text)
+        price = r.get("offered_price")
+        return r.get("willing_to_buy"), float(price) if price else None
+    except Exception:
+        return None, None
+
+
+async def _extract_insights(transcript: list[dict]) -> ConversationInsight:
+    """Use Claude Haiku to extract owner name, willingness to sell, and final price from a transcript.
+
+    Transcript roles:
+      - 'agent': the AI bot that placed the call (the buyer side)
+      - 'user':  the store owner / seller on the other end of the call
+    """
+    import anthropic
+    text = "\n".join(
+        f"{t.get('role', '?')}: {t.get('message', '')}" for t in transcript
+    )
+    client = anthropic.Anthropic()
+    resp = client.messages.create(
+        model="claude-haiku-4-5",
+        max_tokens=150,
+        messages=[{"role": "user", "content": (
+            "Below is a transcript of a call. The 'agent' is an AI that called a store to buy an item. "
+            "The 'user' is the store owner/seller. Extract exactly 3 fields:\n"
+            "1. owner_name: the name of the store owner/seller ('user' side). "
+            "Look for when the agent asks for a name and the user replies. null if not mentioned.\n"
+            "2. willing_to_sell: true if the owner agreed to sell, false if they refused.\n"
+            "3. offered_price: the FINAL price the owner accepted or last offered "
+            "(NOT the opening ask — use the price the deal closed at or the last counter-offer). "
+            "null if the owner is not willing to sell.\n\n"
+            f"{text}\n\n"
+            'Respond with JSON only: {"owner_name": string/null, "willing_to_sell": true/false, "offered_price": number/null}'
+        )}],
+    )
+    try:
+        r = json.loads(resp.content[0].text)
+        price = r.get("offered_price")
+        willing = bool(r.get("willing_to_sell", False))
+        return ConversationInsight(
+            owner_name=r.get("owner_name"),
+            willing_to_sell=willing,
+            offered_price=float(price) if (price is not None and willing) else None,
+        )
+    except Exception:
+        return ConversationInsight(willing_to_sell=False)
+
+
+async def _extract_outcome(
+    conv: dict,
+    store: StoreCallTarget,
+) -> CallOutcome:
+    analysis = conv.get("analysis", {})
+    metadata = conv.get("metadata", {})
+    # Each transcript item includes: role, message, time_in_call_secs,
+    # tool_calls, tool_results, feedback, llm_usage, rag_retrieval_info
+    transcript = conv.get("transcript", [])
+
+    willing_to_buy: Optional[bool] = None
+    offered_price: Optional[float] = None
+
+    # Try data_collection_results first
+    dc = analysis.get("data_collection_results", {})
+    if "willing_to_buy" in dc:
+        willing_to_buy = dc["willing_to_buy"].get("value")
+    if "offered_price" in dc:
+        raw = dc["offered_price"].get("value")
+        try:
+            offered_price = float(raw) if raw else None
+        except (TypeError, ValueError):
+            pass
+
+    # Fallback: Claude Haiku parses the transcript
+    if willing_to_buy is None and transcript:
+        willing_to_buy, offered_price = await _parse_transcript(transcript)
+
+    return CallOutcome(
+        store_id=store.id,
+        store_name=store.name,
+        phone_number=store.phone_number,
+        conversation_id=conv.get("conversation_id"),
+        agent_id=conv.get("agent_id"),
+        call_status=conv.get("status", "unknown"),
+        call_successful=analysis.get("call_successful"),
+        willing_to_buy=willing_to_buy,
+        offered_price=offered_price,
+        transcript=transcript,
+        summary=analysis.get("transcript_summary"),
+        call_summary_title=analysis.get("call_summary_title"),
+        evaluation_criteria_results=analysis.get("evaluation_criteria_results") or {},
+        start_time_unix_secs=metadata.get("start_time_unix_secs"),
+        call_duration_secs=metadata.get("call_duration_secs"),
+    )
+
+
 # ==================== ROUTES ====================
 
 @app.get("/health")
@@ -387,6 +597,21 @@ async def get_agent_signed_url():
         return {"error": str(e)}
 
 
+@app.get("/api/agent/conversations/{conversation_id}/insights", response_model=ConversationInsight)
+async def get_conversation_insights(conversation_id: str, request: Request):
+    """
+    Fetch a conversation transcript from ElevenLabs and use Claude to extract:
+    - owner_name: who was calling
+    - willing_to_sell: boolean
+    - offered_price: price if willing, else null
+    """
+    conv = await _fetch_conversation(conversation_id)
+    transcript = conv.get("transcript", [])
+    if not transcript:
+        raise HTTPException(status_code=404, detail="No transcript found for this conversation")
+    return await _extract_insights(transcript)
+
+
 @app.post("/api/agent/webhook")
 async def agent_webhook(request: Request):
     """
@@ -412,3 +637,185 @@ async def agent_tools(request: Request):
         return {"name": "Buildathon User", "status": "active"}
 
     return {"status": "success", "message": f"Tool {tool_name} executed"}
+
+
+# ==================== PHONE NUMBER ROUTES ====================
+
+class ImportPhoneNumberRequest(BaseModel):
+    phone_number: str          # E.164 format: +15551234567
+    label: str
+    sid: Optional[str] = None  # Twilio Account SID (falls back to settings)
+    token: Optional[str] = None  # Twilio Auth Token (falls back to settings)
+
+class ImportPhoneNumberResponse(BaseModel):
+    phone_number_id: str
+    phone_number: str
+    label: str
+
+
+@app.post("/api/calls/phone-numbers", response_model=ImportPhoneNumberResponse)
+async def import_phone_number(req: ImportPhoneNumberRequest, request: Request):
+    """Import a Twilio phone number into ElevenLabs for outbound calling."""
+    sid = req.sid or settings.twilio_account_sid
+    token = req.token or settings.twilio_auth_token
+
+    if not sid or not token:
+        raise HTTPException(status_code=400, detail="Twilio SID and token are required")
+
+    async with httpx.AsyncClient() as client:
+        r = await client.post(
+            "https://api.elevenlabs.io/v1/convai/phone-numbers",
+            headers={"xi-api-key": settings.elevenlabs_api_key, "Content-Type": "application/json"},
+            json={
+                "provider": "twilio",
+                "phone_number": req.phone_number,
+                "label": req.label,
+                "sid": sid,
+                "token": token,
+            },
+        )
+        r.raise_for_status()
+        data = r.json()
+
+    return ImportPhoneNumberResponse(
+        phone_number_id=data["phone_number_id"],
+        phone_number=req.phone_number,
+        label=req.label,
+    )
+
+
+# ==================== CALLING ROUTES ====================
+
+@app.post("/api/calls/batch", response_model=BatchCallStatus)
+async def create_batch_call(req: BatchCallRequest, request: Request):
+    """Initiate a batch outbound call to multiple stores via ElevenLabs."""
+    recipients = []
+    for store in req.stores:
+        recipients.append({
+            "id": store.id,
+            "phone_number": store.phone_number,
+            "conversation_initiation_client_data": {
+                "dynamic_variables": _build_dynamic_variables(store, req.context)
+            }
+        })
+
+    async with httpx.AsyncClient() as client:
+        r = await client.post(
+            "https://api.elevenlabs.io/v1/convai/batch-calling/submit",
+            headers={"xi-api-key": settings.elevenlabs_api_key, "Content-Type": "application/json"},
+            json={
+                "call_name": req.call_name,
+                "agent_id": settings.elevenlabs_agent_id,
+                "agent_phone_number_id": settings.elevenlabs_phone_number_id,
+                "recipients": recipients,
+            },
+        )
+        r.raise_for_status()
+        data = r.json()
+
+    return BatchCallStatus(
+        batch_id=data["id"],
+        status=data["status"],
+        call_name=req.call_name,
+        total_scheduled=data.get("total_calls_scheduled", len(req.stores)),
+        total_dispatched=data.get("total_calls_dispatched", 0),
+        total_finished=data.get("total_calls_finished", 0),
+        outcomes=[],
+    )
+
+
+@app.get("/api/calls/batch/{batch_id}", response_model=BatchCallStatus)
+async def get_batch_call(batch_id: str, request: Request):
+    """Poll batch call status and retrieve structured outcomes for completed calls."""
+    async with httpx.AsyncClient() as client:
+        r = await client.get(
+            f"https://api.elevenlabs.io/v1/convai/batch-calling/{batch_id}",
+            headers={"xi-api-key": settings.elevenlabs_api_key},
+        )
+        r.raise_for_status()
+        data = r.json()
+
+    outcomes: list[CallOutcome] = []
+    for recipient in data.get("recipients", []):
+        store = StoreCallTarget(
+            id=recipient.get("id", ""),
+            name=recipient.get("client_data", {}).get("dynamic_variables", {}).get("store_name", ""),
+            phone_number=recipient.get("phone_number", ""),
+        )
+        conv_id = recipient.get("conversation_id")
+        if conv_id:
+            conv = await _fetch_conversation(conv_id)
+            outcome = await _extract_outcome(conv, store)
+        else:
+            outcome = CallOutcome(
+                store_id=store.id,
+                store_name=store.name,
+                phone_number=store.phone_number,
+                call_status=recipient.get("status", "pending"),
+            )
+        outcomes.append(outcome)
+
+    return BatchCallStatus(
+        batch_id=data["id"],
+        status=data["status"],
+        call_name=data.get("name", ""),
+        total_scheduled=data.get("total_calls_scheduled", 0),
+        total_dispatched=data.get("total_calls_dispatched", 0),
+        total_finished=data.get("total_calls_finished", 0),
+        outcomes=outcomes,
+    )
+
+
+@app.post("/api/calls/single", response_model=SingleCallResponse)
+async def create_single_call(req: SingleCallRequest, request: Request):
+    """Initiate a single outbound call to a store via ElevenLabs Twilio."""
+    async with httpx.AsyncClient() as client:
+        r = await client.post(
+            "https://api.elevenlabs.io/v1/convai/twilio/outbound-call",
+            headers={"xi-api-key": settings.elevenlabs_api_key, "Content-Type": "application/json"},
+            json={
+                "agent_id": settings.elevenlabs_agent_id,
+                "agent_phone_number_id": settings.elevenlabs_phone_number_id,
+                "to_number": req.store.phone_number,
+                "conversation_initiation_client_data": {
+                    "dynamic_variables": _build_dynamic_variables(req.store, req.context)
+                },
+            },
+        )
+        r.raise_for_status()
+        data = r.json()
+
+    return SingleCallResponse(
+        conversation_id=data.get("conversation_id", ""),
+        call_sid=data.get("callSid"),
+        store_name=req.store.name,
+    )
+
+
+@app.get("/api/calls/single/{conversation_id}", response_model=CallOutcome)
+async def get_single_call_result(conversation_id: str, request: Request):
+    """Retrieve structured result for a completed single call."""
+    conv = await _fetch_conversation(conversation_id)
+    dv = conv.get("metadata", {}).get("dynamic_variables", {})
+    store = StoreCallTarget(
+        id=conversation_id,
+        name=dv.get("store_name", "Unknown"),
+        phone_number=conv.get("metadata", {}).get("phone_call", {}).get("to_number", ""),
+    )
+    return await _extract_outcome(conv, store)
+
+
+@app.post("/api/calls/webhook")
+async def calls_webhook(request: Request):
+    """
+    Post-call transcription webhook from ElevenLabs (no auth required).
+    Configure URL in ElevenLabs dashboard > Agent > Advanced > Webhooks.
+    """
+    data = await request.json()
+    event_type = data.get("type")
+    if event_type == "post_call_transcription":
+        conv_data = data.get("data", {})
+        print(f"[Webhook] Call complete: {conv_data.get('conversation_id')} | "
+              f"status: {conv_data.get('analysis', {}).get('call_successful')}")
+        # Extend here to persist to Supabase if needed
+    return {"status": "received"}

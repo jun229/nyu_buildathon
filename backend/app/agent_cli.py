@@ -5,6 +5,8 @@ import asyncio
 import queue
 import threading
 import pyaudio
+import httpx
+import anthropic
 from dotenv import load_dotenv
 import websockets
 
@@ -39,6 +41,110 @@ def _speaker_thread(
             break
 
 
+async def _resolve_conversation_id(client: httpx.AsyncClient, api_key: str, agent_id: str, hint: str | None) -> str | None:
+    """
+    Return a conversation_id to analyze.
+    - If hint is provided (captured from the WebSocket session), use it directly.
+    - Otherwise query the conversations list for the agent and pick the most recent one.
+    """
+    if hint:
+        return hint
+
+    print("[Analysis] No conversation ID from session — fetching latest from agent history...")
+    r = await client.get(
+        "https://api.elevenlabs.io/v1/convai/conversations",
+        headers={"xi-api-key": api_key},
+        params={"agent_id": agent_id, "page_size": 1},
+    )
+    if r.status_code != 200:
+        print(f"[Analysis] Could not list conversations: HTTP {r.status_code}")
+        return None
+    conversations = r.json().get("conversations", [])
+    if not conversations:
+        print("[Analysis] No conversations found for this agent.")
+        return None
+    return conversations[0]["conversation_id"]
+
+
+async def fetch_and_analyze(conversation_id_hint: str | None):
+    """
+    Resolve the target conversation (from WebSocket capture or agent history),
+    poll until the transcript is ready (status == 'done'), then use Claude Haiku
+    to extract:
+      - owner_name
+      - willing_to_sell (bool)
+      - offered_price (float or null)
+    """
+    api_key = os.getenv("ELEVENLABS_API_KEY")
+    agent_id = os.getenv("ELEVENLABS_AGENT_ID")
+
+    data = {}
+    async with httpx.AsyncClient() as client:
+        conversation_id = await _resolve_conversation_id(client, api_key, agent_id, conversation_id_hint)
+        if not conversation_id:
+            return
+
+        print(f"\n[Analysis] Waiting for transcript (conversation: {conversation_id})...")
+
+        for _ in range(20):  # poll up to ~40 seconds
+            await asyncio.sleep(2)
+            r = await client.get(
+                f"https://api.elevenlabs.io/v1/convai/conversations/{conversation_id}",
+                headers={"xi-api-key": api_key},
+            )
+            if r.status_code != 200:
+                print(f"[Analysis] Error fetching transcript: HTTP {r.status_code}")
+                return
+            data = r.json()
+            if data.get("status") == "done":
+                break
+        else:
+            print("[Analysis] Timed out waiting for transcript to be processed.")
+            return
+
+    transcript = data.get("transcript", [])
+    if not transcript:
+        print("[Analysis] No transcript found in conversation.")
+        return
+
+    # Build plain-text transcript for Claude
+    text = "\n".join(
+        f"{t.get('role', '?')}: {t.get('message', '')}" for t in transcript
+    )
+
+    claude = anthropic.Anthropic()
+    resp = claude.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=150,
+        messages=[{"role": "user", "content": (
+            "Below is a transcript of a call. The 'agent' is an AI that called a store to buy an item. "
+            "The 'user' is the store owner/seller. Extract exactly 3 fields:\n"
+            "1. owner_name: the name of the store owner/seller ('user' side). "
+            "Look for when the agent asks for a name and the user replies. null if not mentioned.\n"
+            "2. willing_to_sell: true if the owner agreed to sell, false if they refused.\n"
+            "3. offered_price: the FINAL price the owner accepted or last offered "
+            "(NOT the opening ask — use the price the deal closed at or the last counter-offer). "
+            "null if the owner is not willing to sell.\n\n"
+            f"{text}\n\n"
+            'Respond with JSON only: {"owner_name": string/null, "willing_to_sell": true/false, "offered_price": number/null}'
+        )}],
+    )
+
+    try:
+        result = json.loads(resp.content[0].text)
+        willing = bool(result.get("willing_to_sell", False))
+        price = result.get("offered_price")
+
+        print("\n--- Conversation Insights ---")
+        print(f"Owner Name:      {result.get('owner_name') or 'Unknown'}")
+        print(f"Willing to Sell: {'Yes' if willing else 'No'}")
+        print(f"Offered Price:   {'$' + str(price) if willing and price is not None else 'N/A'}")
+        print("-----------------------------\n")
+    except Exception as e:
+        print(f"[Analysis] Failed to parse Claude response: {e}")
+        print(f"[Analysis] Raw response: {resp.content[0].text}")
+
+
 async def conversation_loop():
     api_key = os.getenv("ELEVENLABS_API_KEY")
     agent_id = os.getenv("ELEVENLABS_AGENT_ID")
@@ -70,6 +176,9 @@ async def conversation_loop():
     )
     spk_thread.start()
 
+    # Shared state for conversation ID captured during the session
+    session: dict = {"conversation_id": None}
+
     try:
         async with websockets.connect(url, additional_headers={"xi-api-key": api_key}) as ws:
             print("\n--- Connected to ElevenLabs ---")
@@ -86,7 +195,6 @@ async def conversation_loop():
                             lambda: mic_stream.read(CHUNK, exception_on_overflow=False),
                         )
                         # Gate: replace real mic audio with silence during agent speech.
-                        # This prevents the speaker output from being transcribed as user input.
                         chunk = SILENCE_CHUNK if agent_speaking.is_set() else data
                         await ws.send(json.dumps({
                             "user_audio_chunk": base64.b64encode(chunk).decode("utf-8")
@@ -106,8 +214,9 @@ async def conversation_loop():
 
                         if event_type == "conversation_initiation_metadata":
                             meta = msg.get("conversation_initiation_metadata_event", {})
+                            session["conversation_id"] = meta.get("conversation_id")
                             print(
-                                f"[Session] ID: {meta.get('conversation_id')} | "
+                                f"[Session] ID: {session['conversation_id']} | "
                                 f"Format: {meta.get('agent_output_audio_format')}"
                             )
 
@@ -178,6 +287,10 @@ async def conversation_loop():
         speaker_stream.stop_stream()
         speaker_stream.close()
         pa.terminate()
+
+    # After the call ends, fetch & analyze the transcript.
+    # Pass the captured ID as a hint; falls back to fetching latest from agent history.
+    await fetch_and_analyze(session["conversation_id"])
 
 
 if __name__ == "__main__":

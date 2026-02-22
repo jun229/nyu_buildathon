@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     # ElevenLabs
     elevenlabs_api_key: str = ""
     elevenlabs_agent_id: str = ""
+    elevenlabs_phone_number_id: str = ""   # from ElevenLabs dashboard > Phone Numbers
     
     # Twilio (optional for incoming calls)
     twilio_account_sid: str = ""
