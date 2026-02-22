@@ -1,7 +1,7 @@
 'use client';
 
-import { useRef, useState, useCallback } from 'react';
-import { UserButton } from '@clerk/nextjs';
+import { useRef, useState, useCallback, useEffect } from 'react';
+import { UserButton, useAuth } from '@clerk/nextjs';
 import { Camera, Upload, X, Zap, ImageIcon, Phone, MapPin } from 'lucide-react';
 import Link from 'next/link';
 import { formatPrice } from '@/lib/utils';
@@ -13,7 +13,7 @@ type UploadState = 'idle' | 'preview' | 'analyzing' | 'results' | 'error';
 interface AnalysisResult {
   image_url: string;
   item_name: string;
-  estimated_price_range: { min: number; max: number; currency: string };
+  estimated_price_range: { low: number; fair: number; high: number; currency: string };
   best_platform: string;
   platforms: Array<{
     name: string;
@@ -58,14 +58,22 @@ function Navbar() {
 /* ─── Upload Zone ─────────────────────────────────────────────────────────── */
 
 export default function HomePage() {
+  const { getToken } = useAuth();
   const [state, setState] = useState<UploadState>('idle');
   const [preview, setPreview] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const [currentFile, setCurrentFile] = useState<File | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+    );
+  }, []);
 
   const handleFile = useCallback((file: File) => {
     if (!file.type.startsWith('image/')) return;
@@ -105,10 +113,15 @@ export default function HomePage() {
     try {
       const formData = new FormData();
       formData.append('file', currentFile);
+      if (coords) {
+        formData.append('ll', `@${coords.lat},${coords.lng}`);
+      }
 
+      const token = await getToken();
       const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
       const response = await fetch(`${apiUrl}/api/analyze`, {
         method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData,
       });
 
@@ -121,7 +134,7 @@ export default function HomePage() {
       setErrorMessage(err instanceof Error ? err.message : 'Something went wrong');
       setState('error');
     }
-  }, [currentFile]);
+  }, [currentFile, getToken]);
 
   return (
     <div className="min-h-screen bg-[var(--color-neutral-50)] flex flex-col">
@@ -302,7 +315,7 @@ export default function HomePage() {
                   Estimated Value
                 </p>
                 <p className="text-3xl font-extrabold" style={{ fontFamily: 'var(--font-family-display)' }}>
-                  {formatPrice(analysisResult.estimated_price_range.min)} – {formatPrice(analysisResult.estimated_price_range.max)}
+                  {formatPrice(analysisResult.estimated_price_range.low)} – {formatPrice(analysisResult.estimated_price_range.high)}
                 </p>
                 <p className="text-sm text-[var(--color-neutral-500)] mt-1">
                   Best on{' '}
