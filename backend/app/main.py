@@ -15,14 +15,23 @@ supabase: Client = create_client(
     settings.supabase_anon_key
 )
 
-# Configure Clerk Auth - APPLIES TO ALL ROUTES
+# Configure Clerk Auth
 clerk_config = ClerkConfig(jwks_url=settings.clerk_jwks_url)
 clerk_auth = ClerkHTTPBearer(config=clerk_config, add_state=True)
+
+DEV_USER = {"sub": "dev-user-id", "email": "dev@localhost"}
+
+async def auth_dependency(request: Request):
+    """Skip Clerk auth in development mode."""
+    if settings.environment == "development":
+        request.state.credentials = type("_Creds", (), {"decoded": DEV_USER})()
+        return
+    return await clerk_auth(request)
 
 # Create app with global auth dependency
 app = FastAPI(
     title="Buildathon API",
-    dependencies=[Depends(clerk_auth)]  # ALL ROUTES PROTECTED
+    dependencies=[Depends(auth_dependency)]  # ALL ROUTES PROTECTED
 )
 
 # CORS
