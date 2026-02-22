@@ -15,7 +15,7 @@ Node 3 (Synthesis): Claude Opus 4.6   — produces a voice-agent JSON payload
 Graph:              LangGraph StateGraph with parallel fan-out
 
 Usage:
-  python agent.py path/to/item.jpg --location "New York, NY"
+  python agent.py path/to/item.jpg --ll "@40.7009973,-73.994778"
 """
 
 import argparse
@@ -453,6 +453,7 @@ def swarm_node(state: AgentState) -> dict:
 # ═══════════════════════════════════════════════════════════════════════════
 
 _SEARCHAPI_URL = "https://www.searchapi.io/api/v1/search"
+_SEARCH_RADIUS_M = 16093  # 10 miles in meters
 
 _SPECIALTY_MAP = [
     (["bike", "bicycle", "cycling", "trek", "specialized"], "bike shop"),
@@ -483,11 +484,18 @@ def _specialty_query(item: str) -> str:
     return ""
 
 
-def _search_google_maps(query: str, location: str) -> list[dict]:
-    """Search for shops via SearchAPI.io Google Maps engine."""
+def _search_google_maps(query: str, ll: str) -> list[dict]:
+    """Search for shops via SearchAPI.io Google Maps engine.
+
+    Args:
+        query: Search term (e.g. "pawn shop").
+        ll:    GPS coordinates string in SearchAPI ll format,
+               e.g. "@40.7009973,-73.994778,12z"
+    """
     params = {
         "engine": "google_maps",
-        "q": f"{query} near {location}",
+        "q": query,
+        "ll": f"{ll},{_SEARCH_RADIUS_M}m",
         "api_key": SEARCHAPI_KEY,
     }
     try:
@@ -515,14 +523,14 @@ def _search_google_maps(query: str, location: str) -> list[dict]:
 def shop_finder_node(state: AgentState) -> dict:
     """Find nearby shops via SearchAPI.io Google Maps."""
     item = state["identified_item"]
-    loc = state["user_location"]
-    print(f"\n[3/4 SHOPS] Searching Google Maps via SearchAPI near {loc}...")
+    ll = state["user_location"]
+    print(f"\n[3/4 SHOPS] Searching Google Maps via SearchAPI at {ll}...")
 
     all_shops: list[dict] = []
 
     # Search 1: Pawn shops
     print("  [SHOPS] Searching: pawn shops")
-    pawn = _search_google_maps("pawn shop", loc)
+    pawn = _search_google_maps("pawn shop", ll)
     for s in pawn:
         s["shop_type"] = "pawn"
     all_shops.extend(pawn)
@@ -531,7 +539,7 @@ def shop_finder_node(state: AgentState) -> dict:
     spec_q = _specialty_query(item)
     if spec_q:
         print(f"  [SHOPS] Searching: {spec_q}")
-        spec = _search_google_maps(spec_q, loc)
+        spec = _search_google_maps(spec_q, ll)
         for s in spec:
             s["shop_type"] = "specialty"
         all_shops.extend(spec)
@@ -539,7 +547,7 @@ def shop_finder_node(state: AgentState) -> dict:
     # Search 3: "sell/buy used" shops
     buy_q = f"sell used {spec_q or 'items'}"
     print(f"  [SHOPS] Searching: {buy_q}")
-    buyers = _search_google_maps(buy_q, loc)
+    buyers = _search_google_maps(buy_q, ll)
     for s in buyers:
         s["shop_type"] = "buyer"
     all_shops.extend(buyers)
@@ -684,8 +692,13 @@ def build_graph():
 # MAIN
 # ═══════════════════════════════════════════════════════════════════════════
 
-def run(image_path: str, location: str = "New York, NY") -> dict:
-    """Run the full appraisal pipeline. Returns the final state dict."""
+def run(image_path: str, location: str = "@40.7009973,-73.994778") -> dict:
+    """Run the full appraisal pipeline. Returns the final state dict.
+
+    Args:
+        location: GPS coordinates as "@latitude,longitude". A fixed 10-mile search
+                  radius is appended automatically.
+    """
     if not os.path.isabs(image_path):
         image_path = os.path.join(_SCRIPT_DIR, image_path)
 
@@ -739,11 +752,11 @@ def main():
         help="Path to the item image (default: sample_item.jpg)",
     )
     parser.add_argument(
-        "--location", "-l", default="New York, NY",
-        help="Your city/area for shop search (default: New York, NY)",
+        "--ll", "-l", default="@40.7009973,-73.994778",
+        help='GPS coordinates: "@latitude,longitude" (default: @40.7009973,-73.994778 — Manhattan)',
     )
     args = parser.parse_args()
-    run(image_path=args.image, location=args.location)
+    run(image_path=args.image, location=args.ll)
 
 
 if __name__ == "__main__":
