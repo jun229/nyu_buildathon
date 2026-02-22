@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import { UserButton } from '@clerk/nextjs';
@@ -101,7 +101,7 @@ function ShippingLabel({ offer, itemName }: { offer: OfferResult; itemName: stri
 
 /* ─── Main Page ──────────────────────────────────────────────────────────── */
 
-export default function OffersPage() {
+function OffersContent() {
   const { getToken } = useAuth();
   const searchParams = useSearchParams();
   const jobId = searchParams.get('job_id');
@@ -288,5 +288,17 @@ export default function OffersPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function OffersPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <OffersContent />
+    </Suspense>
   );
 }
