@@ -446,11 +446,10 @@ function PriceComparison() {
               {localOffers.map((o, i) => (
                 <div
                   key={i}
-                  className={`flex items-center justify-between p-3 rounded-lg border-2 ${
-                    o.best
-                      ? "border-[var(--color-accent-green)] bg-[color-mix(in_srgb,var(--color-accent-green)_8%,transparent)]"
-                      : "border-[var(--color-neutral-300)] bg-[var(--color-neutral-50)]"
-                  }`}
+                  className={`flex items-center justify-between p-3 rounded-lg border-2 ${o.best
+                    ? "border-[var(--color-accent-green)] bg-[color-mix(in_srgb,var(--color-accent-green)_8%,transparent)]"
+                    : "border-[var(--color-neutral-300)] bg-[var(--color-neutral-50)]"
+                    }`}
                 >
                   <div>
                     <p
@@ -833,7 +832,7 @@ function Footer() {
           </span>
         </div>
         <p className="text-sm text-[var(--color-neutral-500)]">
-          © 2024 FlipKit. Built for hustlers.
+          © 2026 FlipKit. Built for hustlers.
         </p>
         <div className="flex gap-4 text-sm text-[var(--color-neutral-500)]">
           <a
