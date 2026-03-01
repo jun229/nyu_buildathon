@@ -1,5 +1,7 @@
 # NYU Buildathon Project
 
+**We won the Hackathon!** Check it out: [https://devpost.com/software/flipkit]
+
 ## Tech Stack
 - **Frontend**: Next.js + TypeScript + Tailwind CSS (deployed on Vercel)
 - **Backend**: FastAPI + Python (deployed on Render)
