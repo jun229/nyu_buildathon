@@ -1,4 +1,4 @@
-# NYU Buildathon Project
+# Project
 
 **We won the Hackathon!** Check it out: [https://devpost.com/software/flipkit]
 
